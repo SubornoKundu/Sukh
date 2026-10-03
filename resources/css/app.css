@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans:
+        ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+    * {
+        @apply border-gray-200;
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+        @apply bg-gray-50 text-gray-900 antialiased;
+        /* Safety net: a stray wide element can never create sideways page scroll. */
+        overflow-x: clip;
+    }
+}
+
+@layer utilities {
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+}
+
+/*
+ * Phones: any input/select/textarea under 16px makes iOS Safari zoom the page
+ * when it is focused. Keep them at 16px on small screens (unlayered on purpose
+ * so it wins over the text-sm utility used on every form control).
+ */
+@media (max-width: 639px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
