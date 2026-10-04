@@ -13,6 +13,7 @@ import { formatPrice } from '@/currency';
 import { routes } from '@/routes';
 import { addToCart as addToCartRequest, openCartDrawer } from '@/Composables/cart';
 import { rememberProduct } from '@/Composables/recentlyViewed';
+import { useWishlist } from '@/Composables/wishlist';
 
 const props = defineProps({
     product: { type: Object, required: true },
@@ -160,13 +161,7 @@ function orderNow() {
     addToCartRequest(payload(), { buyNow: true });
 }
 
-function addToWishlist() {
-    if (!isAuthed.value) {
-        router.visit(routes.login());
-        return;
-    }
-    router.post(routes.wishlistStore(), { product_id: props.product.id }, { preserveScroll: true });
-}
+const { liked: inWishlist, toggle: toggleWishlist } = useWishlist(() => props.product.id);
 
 /* ---------- bundle ("frequently bought together") ---------- */
 const bundleOn = reactive({});
@@ -399,12 +394,14 @@ resetSelection();
 
                         <button
                             type="button"
-                            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:border-rose-300 hover:text-rose-600"
-                            title="Add to wishlist"
-                            aria-label="Add to wishlist"
-                            @click="addToWishlist"
+                            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border hover:border-rose-300 hover:text-rose-600"
+                            :class="inWishlist ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-gray-200 text-gray-600'"
+                            :title="inWishlist ? 'Remove from wishlist' : 'Add to wishlist'"
+                            :aria-label="inWishlist ? 'Remove from wishlist' : 'Add to wishlist'"
+                            :aria-pressed="inWishlist"
+                            @click="toggleWishlist"
                         >
-                            <Heart class="h-5 w-5" />
+                            <Heart class="h-5 w-5" :fill="inWishlist ? 'currentColor' : 'none'" />
                         </button>
                     </div>
 

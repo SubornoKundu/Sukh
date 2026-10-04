@@ -1,17 +1,17 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { Heart, ShoppingCart, SlidersHorizontal } from '@lucide/vue';
 import { formatPrice } from '@/currency';
 import { routes } from '@/routes';
 import { addToCart as addToCartRequest } from '@/Composables/cart';
+import { useWishlist } from '@/Composables/wishlist';
 
 const props = defineProps({
     product: { type: Object, required: true },
 });
 
 const page = usePage();
-const isAuthed = computed(() => Boolean(page.props.auth?.user));
 
 const hasDiscount = computed(
     () => props.product.discount_price && Number(props.product.discount_price) < Number(props.product.price),
@@ -30,18 +30,7 @@ function addToCart() {
     addToCartRequest({ product_id: props.product.id, quantity: 1 });
 }
 
-function addToWishlist() {
-    if (!isAuthed.value) {
-        router.visit(routes.login());
-        return;
-    }
-
-    router.post(
-        routes.wishlistStore(),
-        { product_id: props.product.id },
-        { preserveScroll: true, preserveState: true },
-    );
-}
+const { liked, toggle: toggleWishlist } = useWishlist(() => props.product.id);
 </script>
 
 <template>
@@ -75,12 +64,14 @@ function addToWishlist() {
 
         <button
             type="button"
-            class="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow transition hover:bg-white hover:text-rose-600 sm:h-8 sm:w-8"
-            title="Add to wishlist"
-            aria-label="Add to wishlist"
-            @click="addToWishlist"
+            class="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow transition hover:bg-white hover:text-rose-600 sm:h-8 sm:w-8"
+            :class="liked ? 'text-rose-600' : 'text-gray-600'"
+            :title="liked ? 'Remove from wishlist' : 'Add to wishlist'"
+            :aria-label="liked ? 'Remove from wishlist' : 'Add to wishlist'"
+            :aria-pressed="liked"
+            @click="toggleWishlist"
         >
-            <Heart class="h-4.5 w-4.5" />
+            <Heart class="h-4.5 w-4.5" :fill="liked ? 'currentColor' : 'none'" />
         </button>
 
         <div class="flex flex-1 flex-col gap-0.5 p-2.5 sm:p-3">

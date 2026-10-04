@@ -6,6 +6,7 @@ use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\Wishlist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
@@ -33,6 +34,29 @@ class FrontendCallsTest extends TestCase
         // removing something that is not there is harmless
         $this->delete("/wishlist/{$product->id}")->assertRedirect();
         $this->delete('/wishlist/999999')->assertNotFound();
+    }
+
+    public function test_the_page_tells_which_products_are_in_the_wishlist_so_the_heart_can_turn_red(): void
+    {
+        $a = $this->makeUser('a@example.com');
+        $b = $this->makeUser('b@example.com');
+        $liked = $this->makeProduct();
+        $other = $this->makeProduct();
+        Wishlist::create(['user_id' => $a->id, 'product_id' => $liked->id]);
+        Wishlist::create(['user_id' => $b->id, 'product_id' => $other->id]);
+
+        // guests have none
+        $this->get('/')->assertInertia(fn (Assert $p) => $p->where('wishlistIds', []));
+
+        // each customer only gets their own, as plain numbers
+        $this->actingAs($a)->get('/')->assertInertia(fn (Assert $p) => $p->where('wishlistIds', [$liked->id]));
+
+        // adding and removing is visible on the very next page
+        $this->post('/wishlist', ['product_id' => $other->id]);
+        $this->get('/')->assertInertia(fn (Assert $p) => $p->where('wishlistIds', [$liked->id, $other->id]));
+
+        $this->delete("/wishlist/{$liked->id}");
+        $this->get('/')->assertInertia(fn (Assert $p) => $p->where('wishlistIds', [$other->id]));
     }
 
     public function test_wishlist_only_removes_the_current_users_entry(): void

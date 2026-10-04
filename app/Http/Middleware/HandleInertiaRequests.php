@@ -51,6 +51,10 @@ class HandleInertiaRequests extends Middleware
             'wishlistCount' => $user
                 ? fn () => $user->wishlists()->whereHas('product', fn ($q) => $q->active())->count()
                 : 0,
+            // Ids of the products in the customer's wishlist: the heart buttons turn red from this.
+            'wishlistIds' => $user
+                ? fn () => $user->wishlists()->limit(1000)->pluck('product_id')->map(fn ($id) => (int) $id)->values()->all()
+                : [],
             // Slide-out cart: refreshed on every Inertia response so the badge and
             // the drawer always match what is really in the cart.
             'cartDrawer' => $user

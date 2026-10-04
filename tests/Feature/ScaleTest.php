@@ -53,11 +53,14 @@ class ScaleTest extends TestCase
     public function test_dashboard_figures_are_exact_with_thousands_of_orders_and_use_few_queries(): void
     {
         $buyer = $this->makeUser();
+        // "Today" rows are placed just after midnight so the test also passes when it runs right after 00:00
+        // (an hour ago would still be yesterday).
         $now = now();
+        $today = $now->copy()->startOfDay()->addMinute();
 
-        DB::table('orders')->insert($this->orderRows($buyer->id, 1200, 'completed', 'paid', $now->copy()->subHours(1), 100));      // today, paid
-        DB::table('orders')->insert($this->orderRows($buyer->id, 300, 'pending', 'pending', $now->copy()->subMinutes(5), 50));      // today, unpaid
-        DB::table('orders')->insert($this->orderRows($buyer->id, 40, 'cancelled', 'refunded', $now->copy()->subMinutes(5), 70));    // today, cancelled
+        DB::table('orders')->insert($this->orderRows($buyer->id, 1200, 'completed', 'paid', $today, 100));      // today, paid
+        DB::table('orders')->insert($this->orderRows($buyer->id, 300, 'pending', 'pending', $today, 50));      // today, unpaid
+        DB::table('orders')->insert($this->orderRows($buyer->id, 40, 'cancelled', 'refunded', $today, 70));    // today, cancelled
         DB::table('orders')->insert($this->orderRows($buyer->id, 500, 'completed', 'paid', $now->copy()->subDays(3)->setTime(12, 0), 200));
         DB::table('orders')->insert($this->orderRows($buyer->id, 90, 'completed', 'paid', $now->copy()->subDays(100), 10));         // outside the 90-day chart
 
