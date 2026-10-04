@@ -80,7 +80,7 @@ Each product has a main picture plus up to 10 more (Admin → Products → Add/E
 
 ## Uploaded pictures fit automatically
 
-Every picture an admin uploads is fitted to the place it is shown (needs PHP's GD extension, which Herd and most hosts have; without it the original file is kept as before): products and variants become square with nothing cut off (matching-colour borders), banners are cut to 1600x640, categories to 4:3, brand logos are put on a square with a transparent background. Phone photos are turned upright, huge pictures are shrunk and hidden camera data (GPS) is removed. Pictures uploaded before this update are not changed.
+Every picture an admin uploads is fitted to the place it is shown (needs PHP's GD extension, which Herd and most hosts have; without it the original file is kept as before): products and variants become square with nothing cut off (matching-colour borders), banners are cut to 1600x640, categories to 4:3, brand logos keep their own shape with empty transparent edges trimmed so they fill their box on the home page. Phone photos are turned upright, huge pictures are shrunk and hidden camera data (GPS) is removed. Pictures uploaded before this update are not changed.
 
 ## Scaling (many customers + many admins at once)
 
@@ -138,7 +138,31 @@ Optional `.env` values: `SHOP_WHATSAPP`, `SHOP_PHONE`, `SHOP_EMAIL`, `SHOP_ADDRE
 
 With `SHOP_DEMO_LOGIN=true` (default):
 - Login and Register pages show **Customer** and **Admin** buttons that sign in the seeded test accounts (`user@shopease.test` / `admin@shopease.test`) in one click.
-- The admin sidebar has a **Reset demo data** button. After a Yes/No confirmation it runs `migrate:fresh --seed` and deletes pictures uploaded through the admin panel (`public/images/uploads`), restoring the original sample data, then signs the admin back in.
+- The admin sidebar has a **Reset demo data** button. After a Yes/No confirmation it puts the whole site back to the **saved demo state** (below), or, when nothing has been saved, to the original sample data (`migrate:fresh --seed` and the pictures in `public/images/uploads` removed). The admin stays signed in.
+
+### Saved demo state (the site "as set up", restored by Reset)
+
+You set the demo up the way the client should always find it (site name, logo, categories, brands, products, pictures, banners, coupons, settings...) and save that once:
+
+1. In `.env` set `SHOP_DEMO_LOGIN=true` and, temporarily, `SHOP_SETTINGS_ACCESS=true`.
+2. Sign in as admin and click **Save as demo state** in the sidebar (Yes, save).
+3. Set `SHOP_SETTINGS_ACCESS=false` again. The Save button disappears (and its address gives "not found"), so a client with the admin login cannot overwrite the saved state. Only **Reset demo data** remains.
+
+From then on **Reset demo data** restores exactly that: every table (products, orders, customers, reviews, settings...) and every uploaded picture. Whatever visitors added or changed is erased, no matter how often they reset.
+
+- The saved state is kept as plain files in `storage/app/demo-baseline` (nothing is added to the database, no migration, no terminal needed). Keep `storage/` writable and include that folder in backups.
+- Restoring is checked before anything is touched and the database part is all-or-nothing: a damaged copy or an error leaves the site as it was and shows a message.
+- Signed-in users, caches, sessions and queued jobs are not part of it, so the admin stays signed in.
+- After adding features that change the database (a new migration), save the demo state once more.
+- Terminal available: `php artisan demo:reset --save` saves, `php artisan demo:reset` restores.
+
+**Automatic nightly reset (no terminal needed).** Put a long random `DEMO_RESET_TOKEN=...` in `.env`, then in cPanel > Cron Jobs add a daily job (for example at 3:00):
+
+```
+wget -q -O /dev/null "https://demo.xovelt.com/demo-auto-reset?token=YOUR_TOKEN"
+```
+
+(or `curl -s "https://.../demo-auto-reset?token=YOUR_TOKEN"`). Without the right token the address gives "not found"; with it and no saved state it answers 409. With a terminal you can use the Laravel scheduler instead: `SHOP_DEMO_AUTO_RESET=true` and the usual `* * * * * php artisan schedule:run` cron.
 
 **Set `SHOP_DEMO_LOGIN=false` before running a real store** - it removes both the one-click logins and the reset button (the routes return 404).
 
@@ -148,4 +172,4 @@ Edit without touching code: site name (header, footer, browser title, emails, in
 announcement bar, tagline, footer line, search-engine description, contact details, social links, WhatsApp,
 shipping fee, free-shipping limit, low-stock alert level and bKash/Nagad numbers.
 Saved values live in the `settings` table (run `php artisan migrate`) and override the defaults in `.env` / `config/shop.php`.
-"Reset demo data" also clears the settings and the uploaded logo/icon.
+"Reset demo data" returns the settings and the logo/icon to the saved demo state (or clears them when no state was saved).

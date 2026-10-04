@@ -52,6 +52,14 @@ Route::get('/track-order', [TrackOrderController::class, 'show'])
 |--------------------------------------------------------------------------
 */
 
+// Cron job entry for the demo site's nightly clean-up (needs DEMO_RESET_TOKEN in .env).
+Route::match(['get', 'post'], '/demo-auto-reset', [Admin\DemoResetController::class, 'auto'])
+    ->middleware('throttle:6,1')->name('demo.auto');
+
+// A signed-in customer who ends up on the 403 page of a demo site can switch to the demo admin.
+Route::post('/auth/demo-admin', [DemoLoginController::class, 'switchToAdmin'])
+    ->middleware(['auth', 'throttle:20,1'])->name('login.demo.admin');
+
 Route::middleware('guest')->group(function () {
     Route::post('/auth/demo', [DemoLoginController::class, 'store'])
         ->middleware('throttle:20,1')->name('login.demo');
@@ -129,6 +137,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::post('demo-reset', [Admin\DemoResetController::class, 'store'])->middleware('throttle:5,1')->name('demo.reset');
+    Route::post('demo-baseline', [Admin\DemoBaselineController::class, 'store'])->middleware('throttle:5,1')->name('demo.baseline');
 
     Route::get('products/import-template', [Admin\ProductController::class, 'importTemplate'])->name('products.import-template');
     Route::post('products/import', [Admin\ProductController::class, 'import'])->name('products.import');

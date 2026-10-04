@@ -98,16 +98,53 @@ class ImageFitTest extends TestCase
         $this->assertSame([900, 675], $this->dims(Category::where('name', 'Cats')->firstOrFail()->image));
     }
 
-    public function test_brand_logo_keeps_its_transparency_on_a_square(): void
+    public function test_brand_logo_keeps_its_own_shape_and_transparency(): void
     {
         $this->actingAs($this->makeAdmin());
         $this->post('/admin/brands', ['name' => 'Wide Brand', 'logo' => UploadedFile::fake()->image('l.png', 800, 200)])->assertSessionHasNoErrors();
 
         $logo = Brand::where('name', 'Wide Brand')->firstOrFail()->logo;
-        $this->assertSame([600, 600], $this->dims($logo));
+        $this->assertSame([600, 150], $this->dims($logo));
         $this->assertStringEndsWith('.png', $logo);
-        $im = imagecreatefrompng(public_path(ltrim($logo, '/')));
-        $this->assertGreaterThan(100, (imagecolorat($im, 2, 2) >> 24) & 0x7F, 'the empty area around the logo is transparent');
+    }
+
+    public function test_brand_logo_empty_edges_are_trimmed_so_it_fills_its_box(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        // 600x600 file with a 240x60 logo in the middle and see-through space all around
+        $img = imagecreatetruecolor(600, 600);
+        imagealphablending($img, false);
+        imagesavealpha($img, true);
+        imagefill($img, 0, 0, imagecolorallocatealpha($img, 255, 255, 255, 127));
+        imagefilledrectangle($img, 180, 270, 419, 329, imagecolorallocatealpha($img, 220, 30, 30, 0));
+        ob_start();
+        imagepng($img);
+        $png = ob_get_clean();
+
+        $this->post('/admin/brands', ['name' => 'Padded', 'logo' => UploadedFile::fake()->createWithContent('p.png', $png)])->assertSessionHasNoErrors();
+
+        [$w, $h] = $this->dims(Brand::where('name', 'Padded')->firstOrFail()->logo);
+        $this->assertEqualsWithDelta(240, $w, 4);
+        $this->assertEqualsWithDelta(60, $h, 4);
+    }
+
+    public function test_brand_logo_on_a_white_background_is_trimmed_too(): void
+    {
+        $this->actingAs($this->makeAdmin());
+
+        $img = imagecreatetruecolor(500, 500);
+        imagefill($img, 0, 0, imagecolorallocate($img, 255, 255, 255));
+        imagefilledrectangle($img, 100, 200, 399, 299, imagecolorallocate($img, 20, 40, 160));
+        ob_start();
+        imagepng($img);
+        $png = ob_get_clean();
+
+        $this->post('/admin/brands', ['name' => 'White Bg', 'logo' => UploadedFile::fake()->createWithContent('w.png', $png)])->assertSessionHasNoErrors();
+
+        [$w, $h] = $this->dims(Brand::where('name', 'White Bg')->firstOrFail()->logo);
+        $this->assertEqualsWithDelta(300, $w, 4);
+        $this->assertEqualsWithDelta(100, $h, 4);
     }
 
     public function test_replacing_a_picture_removes_the_old_processed_file(): void

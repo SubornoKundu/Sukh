@@ -1,14 +1,24 @@
 <script setup>
-import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
-import { Compass, Home, LockKeyhole, ServerCrash, ShoppingBag, Wrench, ArrowLeft } from '@lucide/vue';
+import { computed, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import { Compass, Home, LockKeyhole, ServerCrash, ShoppingBag, Wrench, ArrowLeft, ShieldCheck } from '@lucide/vue';
 import SiteLogo from '@/Components/SiteLogo.vue';
 
 // Branded error page for 403 / 404 / 500 / 503. Stands alone (no MainLayout) so it still
 // works when the server failed before it could prepare the header / footer data.
 const props = defineProps({
     status: { type: Number, default: 404 },
+    // True only on a demo site, for a signed-in customer who opened an admin address.
+    demoAdminSwitch: { type: Boolean, default: false },
 });
+
+const switching = ref(false);
+
+function switchToAdmin() {
+    if (switching.value) return;
+    switching.value = true;
+    router.post('/auth/demo-admin', {}, { onFinish: () => (switching.value = false) });
+}
 
 const info = computed(() => ({
     403: { icon: LockKeyhole, title: 'You can\'t open this page', text: 'This page is not available for your account. If you think this is a mistake, please sign in with the right account or contact us.' },
@@ -37,7 +47,17 @@ function goBack() {
             <h1 class="mt-1 text-xl font-bold break-words text-gray-900 sm:text-2xl">{{ info.title }}</h1>
             <p class="mt-2 text-sm leading-relaxed text-gray-500">{{ info.text }}</p>
 
-            <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <button
+                v-if="demoAdminSwitch"
+                type="button"
+                :disabled="switching"
+                class="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+                @click="switchToAdmin"
+            >
+                <ShieldCheck class="h-4 w-4" /> Switch to admin
+            </button>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:justify-center" :class="demoAdminSwitch ? 'mt-3' : 'mt-6'">
                 <a href="/" class="flex min-h-11 items-center justify-center gap-2 rounded-full bg-green-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
                     <Home class="h-4 w-4" /> Go to home
                 </a>

@@ -69,6 +69,12 @@ return [
     // One-click demo / "Google" sign in on the login page. Turn off in production.
     'demo_login' => (bool) env('SHOP_DEMO_LOGIN', true),
 
+    // Demo site: "Reset demo data" returns to the state saved with "Save as demo state" (kept in files under
+    // storage/app/demo-baseline). DEMO_RESET_TOKEN lets a cron job do that automatically (see README).
+    'demo_reset_token' => env('DEMO_RESET_TOKEN'),
+    'demo_baseline_path' => null,   // tests point these two at a temporary folder
+    'demo_uploads_path' => null,
+
     // Admin > Settings (shop name, logo, colours...) is hidden from the admin panel and its
     // address gives "not found" unless this is true. Keep it false on a site you hand over.
     // To change the logo or name yourself: set SHOP_SETTINGS_ACCESS=true in .env, save, edit, set it back.

@@ -88,6 +88,7 @@ class HandleInertiaRequests extends Middleware
                 'social' => config('shop.social'),
                 'demoLogin' => (bool) config('shop.demo_login'),
                 'settingsAccess' => (bool) config('shop.settings_access'),
+                'demoSavedAt' => fn () => $this->demoSavedAt($request),
                 'lowStockThreshold' => (int) config('shop.low_stock_threshold'),
             ],
             'flash' => [
@@ -137,5 +138,21 @@ class HandleInertiaRequests extends Middleware
             'pending_orders' => Order::where('status', Order::STATUS_PENDING)->count(),
             'open_questions' => ProductQuestion::whereNull('answered_at')->count(),
         ];
+    }
+
+    /** When the demo state was saved ("4 Oct 2026, 6:10 PM"), only worked out for admins on a demo site. */
+    private function demoSavedAt(Request $request): ?string
+    {
+        if (! config('shop.demo_login') || ! $request->user()?->isAdmin()) {
+            return null;
+        }
+
+        $saved = \App\Services\DemoBaseline::meta()['saved_at'] ?? null;
+
+        try {
+            return $saved ? \Illuminate\Support\Carbon::parse($saved)->timezone(config('app.timezone'))->format('j M Y, g:i A') : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

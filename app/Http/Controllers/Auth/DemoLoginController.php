@@ -31,7 +31,24 @@ class DemoLoginController extends Controller
         abort_unless(config('shop.demo_login'), 404);
 
         $data = $request->validate(['provider' => ['required', 'in:demo,google,customer,admin']]);
-        $account = self::ACCOUNTS[$data['provider']];
+
+        return $this->signIn($request, $data['provider']);
+    }
+
+    /**
+     * "Switch to admin" for a signed-in customer who opened the admin address on a demo
+     * site. It only does what the "Enter as Admin" button on the login page already does.
+     */
+    public function switchToAdmin(Request $request): RedirectResponse
+    {
+        abort_unless(config('shop.demo_login'), 404);
+
+        return $this->signIn($request, 'admin');
+    }
+
+    private function signIn(Request $request, string $provider): RedirectResponse
+    {
+        $account = self::ACCOUNTS[$provider];
 
         $user = User::firstOrNew(['email' => $account['email']]);
 

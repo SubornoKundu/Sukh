@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { Store } from '@lucide/vue';
 
@@ -14,6 +14,14 @@ const props = defineProps({
 
 const site = computed(() => usePage().props.site ?? {});
 const name = computed(() => site.value.name || 'ShopEase');
+
+// A wide logo is a full wordmark (name already inside it) so it stands alone.
+// A square / icon-only logo gets the site name written next to it.
+const iconOnly = ref(false);
+function logoLoaded(e) {
+    const { naturalWidth: w, naturalHeight: h } = e.target;
+    iconOnly.value = h > 0 && w / h < 1.8;
+}
 
 // "ShopEase" -> Shop + Ease, "My Shop" -> My + Shop, "Acme" -> Acme
 const parts = computed(() => {
@@ -34,7 +42,10 @@ const text = computed(() => (props.size === 'lg' ? 'text-xl' : 'text-lg'));
 <template>
     <span class="flex min-w-0 items-center gap-2">
         <template v-if="site.logo">
-            <img :src="site.logo" :alt="name" class="w-auto shrink-0 object-contain" :class="logoH">
+            <img :key="site.logo" :src="site.logo" :alt="name" class="w-auto shrink-0 object-contain" :class="logoH" @load="logoLoaded">
+            <span v-if="iconOnly" class="min-w-0 truncate font-bold tracking-tight" :class="[text, dark ? 'text-white' : 'text-gray-900', hideNameBelow ? 'hidden min-[375px]:inline' : '']">
+                {{ parts[0] }}<span v-if="parts[1]" :class="dark ? 'text-green-400' : 'text-green-600'">{{ parts[1] }}</span>
+            </span>
             <span v-if="suffix" class="text-xs font-normal" :class="dark ? 'text-gray-400' : 'text-gray-500'">{{ suffix }}</span>
         </template>
         <template v-else>

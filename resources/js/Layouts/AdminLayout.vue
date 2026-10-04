@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    ExternalLink, HelpCircle, RotateCcw, Image, LayoutDashboard, LogOut, Menu, MessageSquare, Package, ShoppingBag, Settings, ShieldCheck, Star, Tag, Ticket, Users, X, Layers, Warehouse,
+    ExternalLink, HelpCircle, RotateCcw, Image, LayoutDashboard, LogOut, Menu, MessageSquare, Package, ShoppingBag, Settings, ShieldCheck, Star, Tag, Ticket, Users, X, Layers, Warehouse, Save,
 } from '@lucide/vue';
 import SiteLogo from '@/Components/SiteLogo.vue';
 import FlashMessages from '@/Components/FlashMessages.vue';
@@ -20,7 +20,7 @@ watch(open, (isOpen) => {
 });
 
 function onKeydown(event) {
-    if (event.key === 'Escape') { open.value = false; if (!resetting.value) resetOpen.value = false; }
+    if (event.key === 'Escape') { open.value = false; if (!resetting.value) resetOpen.value = false; if (!saving.value) saveOpen.value = false; }
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown));
@@ -70,10 +70,27 @@ function active(link) {
 const demoMode = computed(() => Boolean(page.props.shop?.demoLogin));
 const resetOpen = ref(false);
 const resetting = ref(false);
+const saveOpen = ref(false);
+const saving = ref(false);
+const savedAt = computed(() => page.props.shop?.demoSavedAt ?? null);
+const canSave = computed(() => demoMode.value && Boolean(page.props.shop?.settingsAccess));
 
 function askReset() {
     open.value = false;
     resetOpen.value = true;
+}
+
+function askSave() {
+    open.value = false;
+    saveOpen.value = true;
+}
+
+function doSave() {
+    router.post('/admin/demo-baseline', {}, {
+        preserveScroll: true,
+        onStart: () => { saving.value = true; },
+        onFinish: () => { saving.value = false; saveOpen.value = false; },
+    });
 }
 
 function doReset() {
@@ -109,7 +126,9 @@ function logout() {
             </nav>
             <div class="border-t border-gray-800 p-4 text-sm">
                 <a href="/" target="_blank" class="mb-3 flex items-center gap-2 text-gray-400 hover:text-white"><ExternalLink class="h-4 w-4" /> View store</a>
-                <button v-if="demoMode" type="button" class="mb-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-rose-400/50 px-3 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/10" @click="askReset"><RotateCcw class="h-4 w-4" /> Reset demo data</button>
+                <button v-if="canSave" type="button" class="mb-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-green-400/50 px-3 py-2 text-sm font-semibold text-green-300 hover:bg-green-500/10" @click="askSave"><Save class="h-4 w-4" /> Save as demo state</button>
+                <button v-if="demoMode" type="button" class="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-rose-400/50 px-3 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/10" @click="askReset"><RotateCcw class="h-4 w-4" /> Reset demo data</button>
+                <p v-if="demoMode" class="mt-1.5 mb-3 text-center text-[11px] leading-snug text-gray-500">{{ savedAt ? 'Reset returns to the state saved ' + savedAt : 'Reset returns to the original sample data' }}</p>
                 <p class="truncate font-medium text-white">{{ user?.name }}</p>
                 <p class="truncate text-xs text-gray-500">{{ user?.email }}</p>
                 <button type="button" class="mt-3 flex items-center gap-2 text-gray-400 hover:text-white" @click="logout"><LogOut class="h-4 w-4" /> Log out</button>
@@ -120,10 +139,23 @@ function logout() {
             <div class="max-h-dvh w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
                 <span class="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600"><RotateCcw class="h-6 w-6" /></span>
                 <h2 id="reset-title" class="mt-3 text-lg font-bold text-gray-900">Reset the whole demo site?</h2>
-                <p class="mt-1 text-sm text-gray-600">All products, orders, customers, coupons, banners and uploaded pictures will be erased and replaced with the original sample data. This cannot be undone.</p>
+                <p v-if="savedAt" class="mt-1 text-sm text-gray-600">Everything (products, orders, customers, categories, banners, settings and pictures) goes back to the demo state saved on {{ savedAt }}. Anything added or changed since then is erased. This cannot be undone.</p>
+                <p v-else class="mt-1 text-sm text-gray-600">All products, orders, customers, coupons, banners and uploaded pictures will be erased and replaced with the original sample data. This cannot be undone.</p>
                 <div class="mt-5 grid gap-2 min-[400px]:grid-cols-2">
                     <button type="button" :disabled="resetting" class="min-h-11 rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" @click="resetOpen = false">No, cancel</button>
                     <button type="button" :disabled="resetting" class="min-h-11 rounded-full bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-70" @click="doReset">{{ resetting ? 'Resetting... please wait' : 'Yes, reset' }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="saveOpen" class="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="save-title">
+            <div class="max-h-dvh w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+                <span class="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600"><Save class="h-6 w-6" /></span>
+                <h2 id="save-title" class="mt-3 text-lg font-bold text-gray-900">Save the site as it looks now?</h2>
+                <p class="mt-1 text-sm text-gray-600">Products, categories, brands, banners, settings, customers, orders and uploaded pictures are saved. "Reset demo data" will bring the site back to exactly this. The previously saved state is replaced.</p>
+                <div class="mt-5 grid gap-2 min-[400px]:grid-cols-2">
+                    <button type="button" :disabled="saving" class="min-h-11 rounded-full border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" @click="saveOpen = false">No, cancel</button>
+                    <button type="button" :disabled="saving" class="min-h-11 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-70" @click="doSave">{{ saving ? 'Saving... please wait' : 'Yes, save' }}</button>
                 </div>
             </div>
         </div>

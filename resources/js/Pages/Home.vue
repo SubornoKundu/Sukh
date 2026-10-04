@@ -1,4 +1,5 @@
 <script setup>
+import BrandLogo from '@/Components/BrandLogo.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
@@ -144,11 +145,15 @@ function onTouchEnd(event) {
                         v-for="brand in brands"
                         :key="brand.id"
                         :href="routes.productsIndex({ brand: brand.slug })"
-                        class="flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-gray-200 bg-white p-2.5 transition hover:border-green-300 hover:shadow-md sm:p-3"
+                        :aria-label="brand.name"
+                        class="flex h-16 min-w-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-2.5 transition hover:border-green-300 hover:shadow-md sm:h-20 sm:p-3"
                     >
-                        <img loading="lazy" decoding="async" v-if="brand.logo" :src="brand.logo" :alt="brand.name" class="h-9 w-9 rounded-lg object-cover">
-                        <span v-else class="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-sm font-bold text-green-700">{{ brand.name.charAt(0).toUpperCase() }}</span>
-                        <span class="max-w-full text-center text-xs font-medium break-words text-gray-600">{{ brand.name }}</span>
+                        <!-- The logo already carries the brand name, so it fills the box and no text is shown. -->
+                        <BrandLogo v-if="brand.logo" :src="brand.logo" :alt="brand.name" />
+                        <span v-else class="flex min-w-0 flex-col items-center gap-1">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 text-sm font-bold text-green-700">{{ brand.name.charAt(0).toUpperCase() }}</span>
+                            <span class="max-w-full truncate text-center text-xs font-medium text-gray-600">{{ brand.name }}</span>
+                        </span>
                     </Link>
                 </div>
             </section>

@@ -36,7 +36,7 @@ class BrandController extends ResourceController
     {
         return [
             ['key' => 'name', 'label' => 'Name', 'type' => 'text', 'placeholder' => 'e.g. Walton', 'required' => true],
-            ['key' => 'logo', 'label' => 'Logo (any size - placed on a square)', 'type' => 'image'],
+            ['key' => 'logo', 'label' => 'Logo (any size - empty space around it is trimmed so it fills its box)', 'type' => 'image'],
         ];
     }
 

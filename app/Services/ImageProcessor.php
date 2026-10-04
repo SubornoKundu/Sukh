@@ -10,7 +10,9 @@ namespace App\Services;
  *  banner       exactly 5:2 (1600x640), centre-cropped
  *  category     4:3, centre-cropped
  *  logo         keeps its own shape, transparent PNG
- *  logo-square  square with transparent borders (brand logos)
+ *  logo-square  square with transparent borders (kept for compatibility)
+ *  logo-fit     brand logos: empty transparent edges are cut away and the logo keeps its own
+ *               shape, so it fills its box on the home page
  *
  * Also: phone photos are turned upright, huge pictures are shrunk (faster pages),
  * and the camera's hidden data (GPS location etc.) is dropped.
@@ -28,7 +30,7 @@ class ImageProcessor
         'variants' => 'product',
         'slider' => 'banner',
         'category' => 'category',
-        'brand' => 'logo-square',
+        'brand' => 'logo-fit',
     ];
 
     public static function profileFor(string $folder): ?string
@@ -72,6 +74,7 @@ class ImageProcessor
                 'category' => self::cover($image, 4, 3, 900),
                 'logo' => self::contain($image, 800, false),
                 'logo-square' => self::contain($image, 600, true),
+                'logo-fit' => self::contain(self::trimTransparent($image), 600, false),
                 default => null,
             };
 
@@ -81,7 +84,7 @@ class ImageProcessor
                 return null;
             }
 
-            $png = in_array($profile, ['logo', 'logo-square'], true);
+            $png = in_array($profile, ['logo', 'logo-square', 'logo-fit'], true);
             $name = $baseName.($png ? '.png' : '.jpg');
 
             if (! is_dir($folder) && ! @mkdir($folder, 0775, true) && ! is_dir($folder)) {
@@ -242,6 +245,105 @@ class ImageProcessor
     }
 
     /** Whole picture inside max x max, optionally on a square transparent canvas. */
+    /**
+     * Cuts away see-through or white edges (a logo saved with lots of empty space
+     * around it) so the logo itself can fill its box.
+     */
+    private static function trimTransparent(\GdImage $src): \GdImage
+    {
+        if (! imageistruecolor($src)) {
+            imagepalettetotruecolor($src);
+        }
+
+        // Look at a reduced copy so a huge logo is not scanned pixel by pixel.
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $scale = min(1, 1200 / max($w, $h));
+        $small = $scale < 1 ? self::contain($src, 1200, false) : $src;
+        $sw = imagesx($small);
+        $sh = imagesy($small);
+        // "Empty" means see-through or (nearly) white, so a logo saved on a white
+        // background with a wide blank margin is trimmed too.
+        $visible = static function (int $x, int $y) use ($small): bool {
+            $c = imagecolorat($small, $x, $y);
+
+            if ((($c >> 24) & 0x7F) >= 100) {
+                return false;
+            }
+
+            return ! ((($c >> 16) & 0xFF) >= 232 && (($c >> 8) & 0xFF) >= 232 && ($c & 0xFF) >= 232);
+        };
+
+        $top = null;
+        for ($y = 0; $y < $sh && $top === null; $y++) {
+            for ($x = 0; $x < $sw; $x++) {
+                if ($visible($x, $y)) {
+                    $top = $y;
+                    break;
+                }
+            }
+        }
+
+        if ($top === null) {
+            return $src; // completely empty: leave it alone
+        }
+
+        $bottom = $top;
+        for ($y = $sh - 1; $y > $top; $y--) {
+            for ($x = 0; $x < $sw; $x++) {
+                if ($visible($x, $y)) {
+                    $bottom = $y;
+                    break 2;
+                }
+            }
+        }
+
+        $left = $sw - 1;
+        $right = 0;
+        for ($y = $top; $y <= $bottom; $y++) {
+            for ($x = 0; $x < $left; $x++) {
+                if ($visible($x, $y)) {
+                    $left = $x;
+                    break;
+                }
+            }
+            for ($x = $sw - 1; $x > $right; $x--) {
+                if ($visible($x, $y)) {
+                    $right = $x;
+                    break;
+                }
+            }
+        }
+
+        if ($small !== $src) {
+            unset($small);
+        }
+
+        if ($left > $right) {
+            return $src;
+        }
+
+        // Back to the real picture's pixels, with a hair of room so edges are not clipped.
+        $f = $w / $sw;
+        $x0 = max(0, (int) floor($left * $f) - 1);
+        $y0 = max(0, (int) floor($top * $f) - 1);
+        $x1 = min($w, (int) ceil(($right + 1) * $f) + 1);
+        $y1 = min($h, (int) ceil(($bottom + 1) * $f) + 1);
+        $cw = $x1 - $x0;
+        $ch = $y1 - $y0;
+
+        if ($cw >= $w && $ch >= $h) {
+            return $src;
+        }
+
+        $out = self::canvas($cw, $ch, true);
+        imagealphablending($out, false);
+        imagecopy($out, $src, 0, 0, $x0, $y0, $cw, $ch);
+        imagesavealpha($out, true);
+
+        return $out;
+    }
+
     private static function contain(\GdImage $src, int $max, bool $square): \GdImage
     {
         $w = imagesx($src);

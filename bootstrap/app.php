@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'settings.open' => \App\Http\Middleware\EnsureSettingsOpen::class,
         ]);
 
+        // The nightly demo clean-up is called by cron (no browser, no CSRF cookie); it is protected by a secret token.
+        $middleware->validateCsrfTokens(except: ['demo-auto-reset']);
+
         // Guests who tap "add to cart", "wishlist" or "checkout" land on the login page
         // with a short explanation of why.
         $middleware->redirectGuestsTo(function (Request $request) {
@@ -55,7 +58,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($branded && ! $request->expectsJson() && ! $request->is('api/*')) {
                 try {
-                    return \Inertia\Inertia::render('Error', ['status' => $status])
+                    // On a demo site a signed-in customer who opened the admin address is offered "Switch to admin".
+                    $switch = $status === 403
+                        && config('shop.demo_login')
+                        && $request->user() !== null
+                        && ! $request->user()->isAdmin();
+
+                    return \Inertia\Inertia::render('Error', ['status' => $status, 'demoAdminSwitch' => $switch])
                         ->toResponse($request)
                         ->setStatusCode($status);
                 } catch (\Throwable) {

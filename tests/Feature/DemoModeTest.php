@@ -110,4 +110,41 @@ class DemoModeTest extends TestCase
             Artisan::call('migrate:fresh', ['--force' => true]);
         }
     }
+
+    public function test_a_customer_on_the_403_page_of_a_demo_site_can_switch_to_admin(): void
+    {
+        $this->seed();
+        $this->post('/auth/demo', ['provider' => 'customer']);
+
+        $this->get('/admin')
+            ->assertForbidden()
+            ->assertInertia(fn ($p) => $p->component('Error', false)->where('status', 403)->where('demoAdminSwitch', true));
+
+        $this->post('/auth/demo-admin')->assertRedirect('/admin');
+        $this->assertAuthenticatedAs(User::where('email', UserSeeder::ADMIN_EMAIL)->first());
+        $this->get('/admin')->assertOk();
+    }
+
+    public function test_no_switch_to_admin_when_demo_is_off_or_for_guests_and_other_errors(): void
+    {
+        $this->seed();
+        $customer = User::where('email', UserSeeder::USER_EMAIL)->first();
+
+        // A guest has to log in first.
+        $this->post('/auth/demo-admin')->assertRedirect('/login');
+
+        // Not offered on a real shop and the address itself is not found there.
+        config(['shop.demo_login' => false]);
+        $this->actingAs($customer)->get('/admin')
+            ->assertForbidden()
+            ->assertInertia(fn ($p) => $p->where('demoAdminSwitch', false));
+        $this->actingAs($customer)->post('/auth/demo-admin')->assertNotFound();
+        $this->assertAuthenticatedAs($customer);
+
+        // Not offered on a page-not-found screen.
+        config(['shop.demo_login' => true]);
+        $this->actingAs($customer)->get('/no-such-page')
+            ->assertNotFound()
+            ->assertInertia(fn ($p) => $p->where('demoAdminSwitch', false));
+    }
 }

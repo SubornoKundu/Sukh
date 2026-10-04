@@ -1,0 +1,24 @@
+{
+    "saved_at": "2026-10-04T20:16:59+06:00",
+    "tables": {
+        "addresses": 2,
+        "brands": 5,
+        "cart_items": 0,
+        "categories": 20,
+        "coupons": 3,
+        "order_items": 17,
+        "orders": 15,
+        "otp_verifications": 0,
+        "product_images": 0,
+        "product_questions": 6,
+        "product_variants": 30,
+        "products": 25,
+        "reviews": 5,
+        "settings": 22,
+        "sliders": 3,
+        "users": 6,
+        "wishlists": 1
+    },
+    "uploads": 2,
+    "complete": true
+}

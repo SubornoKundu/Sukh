@@ -71,6 +71,13 @@ class ShopCheck extends Command
         $this->check(config('app.key') !== null && config('app.key') !== '', 'APP_KEY is set');
         $this->check(config('database.default') === 'mysql', 'Database is MySQL', 'warn');
 
+        if (config('shop.demo_login')) {
+            $meta = \App\Services\DemoBaseline::meta();
+            $this->check($meta !== null, $meta
+                ? 'Demo state saved '.\Illuminate\Support\Carbon::parse($meta['saved_at'])->toDayDateTimeString().' (Reset demo data returns to it)'
+                : 'No demo state saved yet: "Reset demo data" would go back to the original sample data. Sign in as admin and click "Save as demo state".', 'warn');
+        }
+
         if (! $demo) {
             $this->check(! config('shop.demo_login'), 'SHOP_DEMO_LOGIN should be false on a real shop (demo login buttons are '.(config('shop.demo_login') ? 'ON' : 'off').'; fine on a demo site: run with --demo)', 'warn');
             $this->check(! config('otp.debug_display'), 'OTP_DEBUG_DISPLAY should be false on a real shop (login codes are '.(config('otp.debug_display') ? 'SHOWN on screen' : 'hidden').')', 'warn');
